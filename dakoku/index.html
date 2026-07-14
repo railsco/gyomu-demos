@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>トラック入退場 受付（デモ）</title>
+<style>
+  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --warn:#C0392B; --lite:#F1F8FB; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
+  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
+  .demoband { max-width:1100px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .demoband a { color:var(--muted); white-space:nowrap; }
+  main { max-width:640px; margin:0 auto; }
+  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px; }
+  h1 { font-size:22px; font-weight:700; }
+  #clock { font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .kpis { display:flex; gap:10px; margin-bottom:24px; }
+  .kpi { flex:1; border:1px solid var(--line); border-radius:8px; padding:10px 0 8px; text-align:center; background:var(--lite); }
+  .kpi-n { font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .kpi-n.warn { color:var(--warn); }
+  .kpi-l { font-size:13px; color:var(--muted); margin-top:2px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .chips button { font-size:13px; padding:8px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; color:var(--accent); }
+  input { width:100%; font-size:16px; padding:14px; border:1px solid var(--line); border-radius:8px; }
+  input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  .seg { display:flex; gap:8px; }
+  .seg button { flex:1; font-size:16px; padding:14px 0; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  .seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #checkin { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:24px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
+  #checkin:disabled { opacity:.4; }
+  h2 { font-size:16px; margin:36px 0 12px; }
+  h2 small { font-weight:400; color:var(--muted); font-size:13px; margin-left:8px; }
+  .truck { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .truck .info { flex:1; font-size:16px; }
+  .truck .meta { font-size:13px; color:var(--muted); margin-top:2px; }
+  .truck.warn .meta .elapsed { color:var(--warn); font-weight:700; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--warn); border-radius:3px; padding:1px 6px; margin-left:6px; }
+  .truck .out { font-size:16px; font-weight:700; padding:12px 20px; border:1px solid var(--accent); border-radius:8px; background:#fff; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  th { font-size:13px; font-weight:400; color:var(--muted); text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--ink); }
+  td { font-size:13px; padding:8px 8px 8px 0; border-bottom:1px solid var(--line); }
+  td.over { color:var(--warn); font-weight:700; }
+  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; font-size:14px; padding:12px 18px; border-radius:8px; display:none; align-items:center; gap:16px; max-width:92vw; }
+  #toast button { background:none; border:none; color:#7FD8C9; font-size:14px; font-weight:700; white-space:nowrap; }
+  @media (min-width:900px) {
+    main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:48px; align-items:start; }
+    header, .kpis { grid-column:1 / -1; }
+    .col-form { grid-column:1; }
+    .col-lists { grid-column:2; }
+    .col-lists h2:first-child { margin-top:0; }
+  }
+</style>
+</head>
+<body>
+<div class="demoband"><span>デモ版 — 記録はこの端末内のみ。本番はスプレッドシートに自動蓄積され、2時間超過も月次で自動集計</span><a href="#" id="reset">リセット</a></div>
+<main>
+  <header><h1>トラック入退場 受付</h1><div id="clock">--:--</div></header>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-n" id="kpiToday">0</div><div class="kpi-l">本日の入場</div></div>
+    <div class="kpi"><div class="kpi-n" id="kpiAvg">—</div><div class="kpi-l">平均滞在（分）</div></div>
+    <div class="kpi"><div class="kpi-n" id="kpiOver">0</div><div class="kpi-l">2時間超</div></div>
+  </div>
+
+  <div class="col-form">
+    <label>運送会社</label>
+    <div class="chips" id="chips"></div>
+    <input id="company" type="text" autocomplete="off" list="companyList" placeholder="例: 長野運輸">
+    <datalist id="companyList"></datalist>
+    <label>車両番号（下4桁）</label>
+    <input id="vehicle" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="例: 1234">
+    <label>用件</label>
+    <div class="seg" id="purpose">
+      <button type="button" data-v="入荷">入荷</button>
+      <button type="button" data-v="出荷">出荷</button>
+      <button type="button" data-v="その他">その他</button>
+    </div>
+    <button id="checkin">入場を記録</button>
+  </div>
+
+  <div class="col-lists">
+    <h2>場内のトラック<small id="onsiteCount"></small></h2>
+    <div id="onsite"></div>
+    <h2>本日の退場済み</h2>
+    <div id="done"></div>
+  </div>
+</main>
+<div id="toast"><span id="toastMsg"></span><button id="toastAct"></button></div>
+
+<script>
+  // ---- デモ用バックエンド（localStorage。本番は Code.gs + Index.html） ----
+  var KEY = 'amw-dakoku-demo';
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+  function save(list) { localStorage.setItem(KEY, JSON.stringify(list)); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function hm(ms) { var d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  function dstr(ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function buildStatus() {
+    var onsite = [], done = [], freq = {}, today = dstr(Date.now());
+    load().forEach(function (r) {
+      freq[r.company] = (freq[r.company] || 0) + 1;
+      var rec = { id: r.id, company: r.company, vehicle: r.vehicle, purpose: r.purpose, inTime: hm(r.inMs), inMs: r.inMs };
+      if (!r.outMs) { onsite.push(rec); }
+      else if (dstr(r.outMs) === today) {
+        rec.outTime = hm(r.outMs); rec.stayMin = Math.max(1, Math.round((r.outMs - r.inMs) / 60000)); done.push(rec);
+      }
+    });
+    done.reverse();
+    var companies = Object.keys(freq).sort(function (a, b) { return freq[b] - freq[a]; }).slice(0, 5);
+    return { onsite: onsite, done: done, companies: companies, serverMs: Date.now() };
+  }
+  var Backend = {
+    getStatus: function () { return Promise.resolve(buildStatus()); },
+    checkIn: function (d) {
+      var st = buildStatus();
+      if (!d.force && st.onsite.some(function (r) { return r.vehicle === d.vehicle; })) {
+        st.duplicate = true; return Promise.resolve(st);
+      }
+      var list = load();
+      var id = Math.random().toString(36).slice(2, 10);
+      list.push({ id: id, company: d.company, vehicle: d.vehicle, purpose: d.purpose, inMs: Date.now(), outMs: null });
+      save(list);
+      var out = buildStatus(); out.newId = id;
+      return Promise.resolve(out);
+    },
+    checkOut: function (id) {
+      var list = load(), matched = false;
+      list.forEach(function (r) { if (r.id === id && !r.outMs) { r.outMs = Date.now(); matched = true; } });
+      save(list);
+      var st = buildStatus(); st.matched = matched;
+      return Promise.resolve(st);
+    },
+    cancelCheckIn: function (id) {
+      save(load().filter(function (r) { return !(r.id === id && !r.outMs); }));
+      return Promise.resolve(buildStatus());
+    },
+    undoCheckOut: function (id) {
+      var list = load();
+      list.forEach(function (r) { if (r.id === id && r.outMs) { r.outMs = null; } });
+      save(list);
+      return Promise.resolve(buildStatus());
+    },
+  };
+  // ?sample でデモ用サンプルデータを投入（空のときだけ）
+  if (/[?&]sample/.test(location.search) && load().length === 0) {
+    var t = Date.now(), M = 60000;
+    save([
+      { id: 's1', company: '長野運輸', vehicle: '1234', purpose: '出荷', inMs: t - 190 * M, outMs: t - 45 * M },
+      { id: 's2', company: '松本急送', vehicle: '5678', purpose: '入荷', inMs: t - 90 * M, outMs: t - 30 * M },
+      { id: 's3', company: '長野運輸', vehicle: '4321', purpose: '出荷', inMs: t - 150 * M, outMs: null },
+      { id: 's4', company: 'アルプス物流', vehicle: '8888', purpose: '入荷', inMs: t - 35 * M, outMs: null },
+      { id: 's5', company: '長野運輸', vehicle: '1111', purpose: '出荷', inMs: t - 300 * M, outMs: t - 250 * M },
+    ]);
+  }
+  document.getElementById('reset').onclick = function (e) {
+    e.preventDefault();
+    localStorage.removeItem(KEY);
+    Backend.getStatus().then(apply);
+  };
+</script>
+<script>
+  // ==== 共通UIロジック（Index.htmlと同一） ====
+  var state = { onsite: [], done: [], companies: [] };
+  var skewMs = 0;
+  var $ = function (id) { return document.getElementById(id); };
+  var OVER_MIN = 120; // 物流効率化法の努力目標「荷待ち+荷役 2時間以内」
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function nowMs() { return Date.now() - skewMs; }
+  function elapsedMin(inMs) { return Math.max(1, Math.round((nowMs() - inMs) / 60000)); }
+  function fmtMin(min) { return min < 60 ? min + '分' : Math.floor(min / 60) + '時間' + (min % 60) + '分'; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+
+  function tickClock() {
+    var d = new Date();
+    $('clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  var toastTimer = null;
+  function toast(msg, actLabel, actFn) {
+    var t = $('toast');
+    $('toastMsg').textContent = msg;
+    var b = $('toastAct');
+    b.style.display = actLabel ? '' : 'none';
+    b.textContent = actLabel || '';
+    b.onclick = function () { hideToast(); if (actFn) actFn(); };
+    t.style.display = 'flex';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 6000);
+  }
+  function hideToast() { $('toast').style.display = 'none'; }
+
+  function render() {
+    var over = 0;
+    state.done.forEach(function (r) { if (r.stayMin >= OVER_MIN) over++; });
+    state.onsite.forEach(function (r) { if (r.inMs && elapsedMin(r.inMs) >= OVER_MIN) over++; });
+    $('kpiToday').textContent = state.onsite.length + state.done.length;
+    var avg = state.done.length ? Math.round(state.done.reduce(function (a, r) { return a + (r.stayMin || 0); }, 0) / state.done.length) : null;
+    $('kpiAvg').textContent = avg === null ? '—' : avg;
+    $('kpiOver').textContent = over;
+    $('kpiOver').className = 'kpi-n' + (over > 0 ? ' warn' : '');
+
+    $('chips').innerHTML = (state.companies || []).map(function (c) {
+      return '<button type="button" data-c="' + esc(c) + '">' + esc(c) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('#chips button'), function (b) {
+      b.onclick = function () { $('company').value = b.getAttribute('data-c'); $('vehicle').focus(); };
+    });
+    $('companyList').innerHTML = (state.companies || []).map(function (c) { return '<option value="' + esc(c) + '">'; }).join('');
+
+    $('onsiteCount').textContent = state.onsite.length ? state.onsite.length + '台' : '';
+    $('onsite').innerHTML = state.onsite.length
+      ? state.onsite.map(function (r) {
+          var em = r.inMs ? elapsedMin(r.inMs) : null;
+          var isOver = em !== null && em >= OVER_MIN;
+          return '<div class="truck' + (isOver ? ' warn' : '') + '"><div class="info">' + esc(r.company) + '　' + esc(r.vehicle) +
+            '<div class="meta">' + esc(r.purpose) + ' ｜ 入場 ' + esc(r.inTime) +
+            (em !== null ? ' ｜ <span class="elapsed">経過 ' + fmtMin(em) + '</span>' : '') +
+            (isOver ? '<span class="badge">2時間超</span>' : '') + '</div></div>' +
+            '<button class="out" data-id="' + esc(r.id) + '">退場</button></div>';
+        }).join('')
+      : '<div class="empty">現在、場内にトラックはいません</div>';
+    $('done').innerHTML = state.done.length
+      ? '<table><tr><th>運送会社</th><th>車両</th><th>入場</th><th>退場</th><th>滞在</th></tr>' +
+        state.done.map(function (r) {
+          var isOver = r.stayMin >= OVER_MIN;
+          return '<tr><td>' + esc(r.company) + '</td><td>' + esc(r.vehicle) + '</td><td>' + esc(r.inTime) +
+            '</td><td>' + esc(r.outTime) + '</td><td' + (isOver ? ' class="over"' : '') + '>' + (r.stayMin !== '' && r.stayMin != null ? esc(r.stayMin) + '分' : '—') + '</td></tr>';
+        }).join('') + '</table>'
+      : '<div class="empty">まだありません</div>';
+    Array.prototype.forEach.call(document.querySelectorAll('.out'), function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute('data-id');
+        b.disabled = true;
+        Backend.checkOut(id).then(function (st) {
+          apply(st);
+          if (st.matched === false) { toast('対象が見つかりませんでした。最新の状態に更新しました'); return; }
+          toast('退場を記録しました', '取消', function () { Backend.undoCheckOut(id).then(apply); });
+        }).catch(function () { b.disabled = false; alert('退場の記録に失敗しました。もう一度お試しください'); });
+      };
+    });
+  }
+
+  function apply(st) {
+    if (st && st.serverMs) { skewMs = Date.now() - st.serverMs; }
+    if (st) { state = st; }
+    render();
+  }
+
+  var purposeVal = '入荷';
+  function setPurpose(v) {
+    purposeVal = v;
+    Array.prototype.forEach.call(document.querySelectorAll('#purpose button'), function (x) {
+      x.classList.toggle('on', x.getAttribute('data-v') === v);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#purpose button'), function (b) {
+    b.onclick = function () { setPurpose(b.getAttribute('data-v')); };
+  });
+  setPurpose('入荷');
+
+  $('vehicle').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 4);
+  });
+
+  function doCheckIn(force) {
+    var company = $('company').value.trim();
+    var vehicle = $('vehicle').value.trim();
+    if (!company || !vehicle) { alert('運送会社と車両番号を入力してください'); return; }
+    $('checkin').disabled = true;
+    Backend.checkIn({ company: company, vehicle: vehicle, purpose: purposeVal, force: !!force }).then(function (st) {
+      $('checkin').disabled = false;
+      if (st.duplicate) {
+        apply(st);
+        if (confirm('同じ車両番号のトラックが場内にいます。続けて記録しますか？')) { doCheckIn(true); }
+        return;
+      }
+      $('company').value = ''; $('vehicle').value = '';
+      setPurpose('入荷');
+      apply(st);
+      var id = st.newId;
+      toast(company + ' ' + vehicle + ' を入場記録しました', '取消', function () { Backend.cancelCheckIn(id).then(apply); });
+    }).catch(function () {
+      $('checkin').disabled = false;
+      alert('通信に失敗しました。もう一度お試しください');
+    });
+  }
+  $('checkin').onclick = function () { doCheckIn(false); };
+
+  tickClock();
+  setInterval(tickClock, 15000);
+  setInterval(render, 20000);
+  setInterval(function () { Backend.getStatus().then(apply).catch(function () {}); }, 30000);
+  Backend.getStatus().then(apply).catch(function () {
+    setTimeout(function () { Backend.getStatus().then(apply).catch(function () { alert('読み込みに失敗しました。再読み込みしてください'); }); }, 3000);
+  });
+</script>
+</body>
+</html>

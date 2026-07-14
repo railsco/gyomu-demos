@@ -76,7 +76,9 @@
       <option value="food">飲食</option>
       <option value="retail">小売</option>
     </select>
-    <button class="go" id="genP">投稿文をつくる</button>
+    <label>タグにしたい語（任意・カンマ/読点区切り）</label>
+    <input id="words" type="text" placeholder="例: よもぎ蒸し、夏限定" autocomplete="off">
+    <button class="go" id="genP">投稿文を3案つくる</button>
     <div id="outP"></div>
   </section>
 
@@ -160,19 +162,63 @@
   };
 
   // ---- MEO投稿 ----
-  var P = {
-    salon: { intro: ['こんにちは、{shop}です。', '{shop}よりお知らせです。'], cta: ['ご予約はプロフィールのリンクからどうぞ。', 'ご来店お待ちしております。'], tags: ['#リラクゼーション', '#サロン', '#癒やし', '#ご自愛時間', '#週末の過ごし方'] },
-    food:  { intro: ['こんにちは、{shop}です。', '{shop}から今週のお知らせです。'], cta: ['ご来店・ご予約お待ちしております。', 'テイクアウトもご利用いただけます。'], tags: ['#ランチ', '#ディナー', '#地元グルメ', '#今日のごはん', '#お持ち帰り'] },
-    retail:{ intro: ['{shop}です。いつもありがとうございます。', 'こんにちは、{shop}です。'], cta: ['店頭でお待ちしております。', '在庫はお電話でもご確認いただけます。'], tags: ['#新商品', '#お買い物', '#地元のお店', '#おすすめ', '#入荷情報'] },
+  var SEASON = {
+    1: ['寒い日が続きますね。', '新しい年、いかがお過ごしですか。'],
+    2: ['まだまだ冷える日が続きますね。', '春が待ち遠しい季節です。'],
+    3: ['少しずつ春の気配を感じる頃になりました。', '季節の変わり目、体調はいかがですか。'],
+    4: ['新生活の季節になりました。', '春らしい陽気が続いていますね。'],
+    5: ['新緑が気持ちいい季節になりました。', '連休の疲れ、残っていませんか。'],
+    6: ['雨の日が続きますね。', 'じめじめした季節こそ、気分転換が大切です。'],
+    7: ['暑い日が続きますね。', '本格的な夏がやってきました。'],
+    8: ['夏本番、いかがお過ごしですか。', '暑さで疲れがたまっていませんか。'],
+    9: ['少しずつ秋めいてきました。', '夏の疲れが出やすい頃です。'],
+    10: ['秋が深まってきました。', '過ごしやすい季節になりましたね。'],
+    11: ['朝晩の冷え込みが増してきました。', '今年も残すところあとわずかですね。'],
+    12: ['年末が近づいてきました。', '一年の疲れ、ためこんでいませんか。'],
   };
+  var P = {
+    salon: {
+      benefit: ['日々の疲れをゆっくりほぐす時間を、ご自身へのご褒美にどうぞ。', '体の内側から温まると、気分まで軽くなります。', 'お一人おひとりの体調に合わせてご案内しています。初めての方もご安心ください。'],
+      cta: ['ご予約はプロフィールのリンク、またはお電話からどうぞ。', '空き状況はお気軽にお問い合わせください。'],
+      tags: ['#リラクゼーション', '#サロン', '#癒やし時間', '#ご自愛'],
+    },
+    food: {
+      benefit: ['素材の仕入れから仕込みまで、今週も丁寧にご用意しています。', '季節の食材を、一番おいしいタイミングでお出しします。', 'お席はゆったり。おひとり様も大歓迎です。'],
+      cta: ['ご来店・ご予約お待ちしております。', 'テイクアウトのご予約はお電話が確実です。'],
+      tags: ['#ランチ', '#ディナー', '#地元グルメ', '#季節の味'],
+    },
+    retail: {
+      benefit: ['店頭では実物をお手に取ってお選びいただけます。', 'スタッフが使い方まで丁寧にご案内します。', '数に限りがある商品もございます。お早めにどうぞ。'],
+      cta: ['皆さまのご来店をお待ちしております。', '在庫はお電話でもご確認いただけます。'],
+      tags: ['#新商品', '#お買い物', '#地元のお店', '#入荷情報'],
+    },
+  };
+  function buildTags(topic, custom, bizTags) {
+    var tags = [];
+    function add(w) { var t = '#' + String(w).replace(/^#/, '').trim(); if (t.length > 1 && tags.indexOf(t) < 0) tags.push(t); }
+    String(custom || '').split(/[、,\s]+/).forEach(function (w) { if (w.trim()) add(w); });
+    (topic.match(/[ァ-ヶー]{3,14}|[一-龠]{2,4}(?:コース|メニュー|フェア|セール)?/g) || []).slice(0, 2).forEach(add);
+    bizTags.forEach(add);
+    return tags.slice(0, 6);
+  }
+  function shuffled(a) { return a.slice().sort(function () { return Math.random() - 0.5; }); }
   $('genP').onclick = function () {
     var topic = $('topic').value.trim();
     if (!topic) { alert('今週のネタを入れてください'); return; }
     var set = P[$('biz').value];
     var shop = $('shopP').value.trim() || '当店';
-    var body = pick(set.intro).replace('{shop}', shop) + '\n\n' + topic + '\n\n' + pick(set.cta);
-    var tags = set.tags.slice(0, 5).join(' ');
-    $('outP').innerHTML = '<div class="card"><div class="head"><span class="tag">投稿文</span><button class="copy">コピー</button></div><p>' + esc(body) + '</p><div class="tags">' + esc(tags) + '</div></div>';
+    var season = pick(SEASON[new Date().getMonth() + 1]);
+    var bene = shuffled(set.benefit);
+    var tags = buildTags(topic, $('words').value, set.tags).join(' ');
+    var plans = [
+      { tag: '案1・季節のあいさつから', body: season + '\n' + shop + 'です。\n\n' + topic + '\n\n' + bene[0] + '\n' + pick(set.cta) },
+      { tag: '案2・ストレート告知', body: '【お知らせ】' + shop + 'より\n\n' + topic + '\n\n' + pick(set.cta) },
+      { tag: '案3・おすすめから入る', body: bene[1] + '\n\n' + topic + '\n\n' + shop + '一同、お待ちしております。' },
+    ];
+    $('outP').innerHTML = plans.map(function (pl) {
+      var full = pl.body + '\n\n' + tags;
+      return '<div class="card"><div class="head"><span class="tag">' + esc(pl.tag) + '（' + full.length + '文字・タグ込み）</span><button class="copy">コピー</button></div><p>' + esc(full) + '</p></div>';
+    }).join('');
     hookCopy('#outP');
   };
 
