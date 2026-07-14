@@ -5,47 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>トラック入退場 受付（デモ）</title>
 <style>
-  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --warn:#C0392B; --lite:#F1F8FB; }
+  :root { --ink:#17323F; --accent:#11688A; --deep:#0E5876; --line:#E1ECF1; --hair:#EAF2F5; --muted:#5E7A87; --warn:#C0392B; --tint:#F0F7FA; }
   * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
-  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
-  .demoband { max-width:1100px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
-  .demoband a { color:var(--muted); white-space:nowrap; }
+  body { background:#fff; color:var(--ink); padding:28px 20px 96px; }
+  .demoband { max-width:640px; margin:0 auto 28px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .demoband a { color:var(--muted); white-space:nowrap; text-decoration:none; }
+  .demoband a:hover { color:var(--accent); }
   main { max-width:640px; margin:0 auto; }
-  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px; }
-  h1 { font-size:22px; font-weight:700; }
-  #clock { font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
-  .kpis { display:flex; gap:10px; margin-bottom:24px; }
-  .kpi { flex:1; border:1px solid var(--line); border-radius:8px; padding:10px 0 8px; text-align:center; background:var(--lite); }
-  .kpi-n { font-size:22px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:24px; }
+  h1 { font-size:24px; font-weight:700; letter-spacing:-0.01em; }
+  #clock { font-size:24px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+  .kpis { display:flex; gap:12px; margin-bottom:32px; }
+  .kpi { flex:1; border-radius:12px; padding:14px 0 12px; text-align:center; background:var(--tint); }
+  .kpi-n { font-size:26px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
   .kpi-n.warn { color:var(--warn); }
-  .kpi-l { font-size:13px; color:var(--muted); margin-top:2px; }
-  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
-  .chips button { font-size:13px; padding:8px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; color:var(--accent); }
-  input { width:100%; font-size:16px; padding:14px; border:1px solid var(--line); border-radius:8px; }
-  input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  .kpi-l { font-size:12px; color:var(--muted); margin-top:3px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:18px 0 8px; letter-spacing:0.02em; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+  .chips button { font-size:13px; font-weight:600; padding:9px 16px; border:none; border-radius:999px; background:var(--tint); color:var(--accent); }
+  .chips button:hover { background:#E2F0F5; }
+  input { width:100%; font-size:16px; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  input::placeholder { color:#A9BDC6; }
+  input:focus { outline:none; border-color:var(--accent); }
   .seg { display:flex; gap:8px; }
-  .seg button { flex:1; font-size:16px; padding:14px 0; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  .seg button { flex:1; font-size:15px; font-weight:600; padding:13px 0; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--muted); }
   .seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
-  #checkin { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:24px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
+  #checkin { width:100%; font-size:18px; font-weight:700; padding:18px 0; margin-top:28px; border:none; border-radius:12px; background:var(--accent); color:#fff; letter-spacing:0.04em; }
+  #checkin:hover { background:var(--deep); }
   #checkin:disabled { opacity:.4; }
-  h2 { font-size:16px; margin:36px 0 12px; }
-  h2 small { font-weight:400; color:var(--muted); font-size:13px; margin-left:8px; }
-  .truck { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); }
-  .truck .info { flex:1; font-size:16px; }
-  .truck .meta { font-size:13px; color:var(--muted); margin-top:2px; }
+  h2 { font-size:13px; font-weight:600; color:var(--muted); letter-spacing:0.06em; margin:44px 0 8px; }
+  h2 small { font-weight:700; color:var(--accent); font-size:13px; margin-left:8px; }
+  .truck { display:flex; align-items:center; gap:14px; padding:16px 0; border-bottom:1px solid var(--hair); }
+  .truck .info { flex:1; font-size:16px; font-weight:600; }
+  .truck .meta { font-size:13px; font-weight:400; color:var(--muted); margin-top:3px; }
   .truck.warn .meta .elapsed { color:var(--warn); font-weight:700; }
-  .badge { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--warn); border-radius:3px; padding:1px 6px; margin-left:6px; }
-  .truck .out { font-size:16px; font-weight:700; padding:12px 20px; border:1px solid var(--accent); border-radius:8px; background:#fff; color:var(--accent); }
+  .badge { display:inline-block; font-size:11px; font-weight:700; color:#fff; background:var(--warn); border-radius:999px; padding:2px 9px; margin-left:6px; }
+  .truck .out { font-size:15px; font-weight:700; padding:11px 20px; border:1.5px solid var(--accent); border-radius:10px; background:#fff; color:var(--accent); }
+  .truck .out:hover { background:var(--tint); }
   table { width:100%; border-collapse:collapse; }
-  th { font-size:13px; font-weight:400; color:var(--muted); text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--ink); }
-  td { font-size:13px; padding:8px 8px 8px 0; border-bottom:1px solid var(--line); }
+  th { font-size:12px; font-weight:600; color:var(--muted); text-align:left; padding:8px 10px 8px 0; border-bottom:1.5px solid var(--line); letter-spacing:0.02em; }
+  td { font-size:14px; padding:10px 10px 10px 0; border-bottom:1px solid var(--hair); font-variant-numeric:tabular-nums; }
   td.over { color:var(--warn); font-weight:700; }
-  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
-  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; font-size:14px; padding:12px 18px; border-radius:8px; display:none; align-items:center; gap:16px; max-width:92vw; }
+  .empty { font-size:13px; color:var(--muted); padding:14px 0; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; font-size:14px; padding:13px 20px; border-radius:12px; display:none; align-items:center; gap:18px; max-width:92vw; }
   #toast button { background:none; border:none; color:#7FD8C9; font-size:14px; font-weight:700; white-space:nowrap; }
   @media (min-width:900px) {
-    main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:48px; align-items:start; }
+    .demoband { max-width:1100px; }
+    main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:56px; align-items:start; }
     header, .kpis { grid-column:1 / -1; }
     .col-form { grid-column:1; }
     .col-lists { grid-column:2; }
@@ -54,7 +60,7 @@
 </style>
 </head>
 <body>
-<div class="demoband"><span>デモ版 — 記録はこの端末内のみ。本番はスプレッドシートに自動蓄積され、2時間超過も月次で自動集計</span><a href="#" id="reset">リセット</a></div>
+<div class="demoband"><a href="https://gyomu-demos.vercel.app/">← デモ一覧</a><span>デモ版 — 記録はこの端末のみ（本番はスプレッドシートへ自動蓄積）<a href="#" id="reset" style="margin-left:14px">リセット</a></span></div>
 <main>
   <header><h1>トラック入退場 受付</h1><div id="clock">--:--</div></header>
 

@@ -5,35 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>仕訳の下ごしらえ 自動化（デモ）</title>
 <style>
-  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --warn:#C0392B; --lite:#F1F8FB; }
+  :root { --ink:#17323F; --accent:#11688A; --deep:#0E5876; --line:#E1ECF1; --hair:#EAF2F5; --muted:#5E7A87; --warn:#C0392B; --tint:#F0F7FA; }
   * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
-  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
-  .band { max-width:860px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
-  .band a { color:var(--muted); white-space:nowrap; }
+  body { background:#fff; color:var(--ink); padding:28px 20px 96px; }
+  .top { max-width:860px; margin:0 auto 28px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .top a { color:var(--muted); text-decoration:none; }
+  .top a:hover { color:var(--accent); }
   main { max-width:860px; margin:0 auto; }
-  h1 { font-size:22px; font-weight:700; margin-bottom:8px; }
-  .sub { font-size:14px; color:var(--muted); margin-bottom:20px; }
-  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
-  textarea { width:100%; font-size:14px; padding:13px; border:1px solid var(--line); border-radius:8px; min-height:130px; resize:vertical; font-family:ui-monospace,monospace; }
-  textarea:focus { outline:2px solid var(--accent); border-color:transparent; }
-  .samples { display:flex; gap:8px; margin-top:8px; }
-  .samples button { font-size:13px; padding:8px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; color:var(--accent); }
-  .go { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:20px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
-  h2 { font-size:16px; margin:36px 0 12px; display:flex; justify-content:space-between; align-items:baseline; }
-  h2 a { font-size:13px; font-weight:400; color:var(--accent); }
+  h1 { font-size:24px; font-weight:700; letter-spacing:-0.01em; margin-bottom:6px; }
+  .sub { font-size:14px; color:var(--muted); margin-bottom:28px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:18px 0 8px; letter-spacing:0.02em; }
+  textarea { width:100%; font-size:13.5px; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; min-height:140px; resize:vertical; font-family:ui-monospace,monospace; line-height:1.8; }
+  textarea::placeholder { color:#A9BDC6; }
+  textarea:focus { outline:none; border-color:var(--accent); }
+  .samples { display:flex; gap:8px; margin-top:10px; }
+  .samples button { font-size:13px; font-weight:600; padding:9px 16px; border:none; border-radius:999px; background:var(--tint); color:var(--accent); }
+  .samples button:hover { background:#E2F0F5; }
+  .go { width:100%; font-size:18px; font-weight:700; padding:18px 0; margin-top:24px; border:none; border-radius:12px; background:var(--accent); color:#fff; letter-spacing:0.04em; }
+  .go:hover { background:var(--deep); }
+  h2 { font-size:13px; font-weight:600; color:var(--muted); letter-spacing:0.06em; margin:48px 0 10px; display:flex; justify-content:space-between; align-items:baseline; }
+  h2 a { font-size:13px; font-weight:600; color:var(--accent); text-decoration:none; }
+  h2 a:hover { text-decoration:underline; }
   table { width:100%; border-collapse:collapse; }
-  th { font-size:13px; font-weight:400; color:var(--muted); text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--ink); }
-  td { font-size:13px; padding:8px 8px 8px 0; border-bottom:1px solid var(--line); vertical-align:middle; }
-  td select { font-size:13px; padding:6px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink); }
+  th { font-size:12px; font-weight:600; color:var(--muted); text-align:left; padding:8px 10px 8px 0; border-bottom:1.5px solid var(--line); letter-spacing:0.02em; }
+  td { font-size:13.5px; padding:10px 10px 10px 0; border-bottom:1px solid var(--hair); vertical-align:middle; }
+  td select { font-size:13px; padding:7px 10px; border:1.5px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  td select:focus { outline:none; border-color:var(--accent); }
   .conf-h { color:var(--accent); font-weight:700; }
   .conf-l { color:var(--warn); font-weight:700; }
   .num { text-align:right; font-variant-numeric:tabular-nums; }
-  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
-  .note { font-size:12px; color:var(--muted); margin-top:20px; line-height:1.7; }
+  .empty { font-size:13px; color:var(--muted); padding:14px 0; line-height:1.7; }
+  .note { font-size:12px; color:var(--muted); margin-top:24px; line-height:1.8; }
 </style>
 </head>
 <body>
-<div class="band"><span>デモ版 — この画面だけで完結。本番は明細の自動取込とAI判定で、担当者は「確認」だけ</span><a href="../">← デモ一覧</a></div>
+<div class="top"><a href="../">← デモ一覧</a><span>デモ版 — この画面だけで完結</span></div>
 <main>
   <h1>仕訳の下ごしらえ 自動化</h1>
   <p class="sub">銀行明細を貼り付けると、勘定科目を自動で当てます。人は自信が低いものだけ直して、会計ソフト用CSVを出すだけ。</p>
@@ -43,7 +49,7 @@
   <div class="samples"><button id="sample">サンプル明細を入れる</button></div>
   <button class="go" id="run">勘定科目を自動で当てる</button>
 
-  <h2>仕訳プレビュー<a href="#" id="csv">会計ソフト取込用CSVをダウンロード</a></h2>
+  <h2>仕訳プレビュー<a href="#" id="csv">会計ソフト取込用CSV ↓</a></h2>
   <div id="out"><div class="empty">明細を入れて「自動で当てる」を押してください</div></div>
 
   <p class="note">

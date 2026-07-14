@@ -5,44 +5,54 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>マイカー利用費 申請（デモ）</title>
 <style>
-  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --warn:#C0392B; --lite:#F1F8FB; }
+  :root { --ink:#17323F; --accent:#11688A; --deep:#0E5876; --line:#E1ECF1; --hair:#EAF2F5; --muted:#5E7A87; --warn:#C0392B; --tint:#F0F7FA; }
   * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
-  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
-  .band { max-width:1100px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
-  .band a { color:var(--muted); white-space:nowrap; }
+  body { background:#fff; color:var(--ink); padding:28px 20px 96px; }
+  .top { max-width:640px; margin:0 auto 28px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .top a { color:var(--muted); text-decoration:none; }
+  .top a:hover { color:var(--accent); }
   main { max-width:640px; margin:0 auto; }
-  h1 { font-size:22px; font-weight:700; margin-bottom:20px; }
-  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
-  input, select { width:100%; font-size:16px; padding:13px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
-  input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  h1 { font-size:24px; font-weight:700; letter-spacing:-0.01em; margin-bottom:6px; }
+  .sub { font-size:14px; color:var(--muted); margin-bottom:28px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:18px 0 8px; letter-spacing:0.02em; }
+  input, select { width:100%; font-size:16px; padding:14px 16px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
+  input::placeholder { color:#A9BDC6; }
+  input:focus { outline:none; border-color:var(--accent); }
   .row2 { display:flex; gap:12px; }
   .row2 > div { flex:1; }
-  .check { display:flex; align-items:center; gap:8px; margin-top:16px; font-size:16px; }
-  .check input { width:22px; height:22px; }
-  #calc { width:100%; font-size:16px; font-weight:700; padding:14px 0; margin-top:20px; border:1px solid var(--accent); border-radius:8px; background:#fff; color:var(--accent); }
+  .check { display:flex; align-items:center; gap:10px; margin-top:18px; font-size:16px; }
+  .check input { width:22px; height:22px; accent-color:var(--accent); }
+  #calc { width:100%; font-size:15px; font-weight:700; padding:14px 0; margin-top:22px; border:1.5px solid var(--accent); border-radius:10px; background:#fff; color:var(--accent); }
+  #calc:hover { background:var(--tint); }
   #calc:disabled { opacity:.4; }
-  .result { display:flex; gap:10px; margin-top:16px; }
-  .rbox { flex:1; border:1px solid var(--line); border-radius:8px; padding:12px; text-align:center; background:var(--lite); }
-  .rbox .n { font-size:22px; font-weight:700; color:var(--accent); }
-  .rbox .n input { font-size:22px; font-weight:700; color:var(--accent); text-align:center; border:none; background:none; width:100%; padding:0; }
-  .rbox .l { font-size:13px; color:var(--muted); margin-top:2px; }
-  #amount { font-size:22px; font-weight:700; color:var(--ink); }
-  #submit { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:20px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
+  .result { display:flex; gap:12px; margin-top:16px; }
+  .rbox { flex:1; border-radius:12px; padding:14px 8px 12px; text-align:center; background:var(--tint); }
+  .rbox .n { font-size:24px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+  .rbox .n input { font-size:24px; font-weight:700; color:var(--ink); text-align:center; border:none; background:none; width:100%; padding:0; font-variant-numeric:tabular-nums; }
+  .rbox .n input:focus { outline:none; border-bottom:2px solid var(--accent); border-radius:0; }
+  .rbox .l { font-size:12px; color:var(--muted); margin-top:3px; }
+  #amount { font-size:24px; font-weight:700; color:var(--ink); letter-spacing:-0.02em; }
+  #amount.lit { color:var(--accent); }
+  #submit { width:100%; font-size:18px; font-weight:700; padding:18px 0; margin-top:24px; border:none; border-radius:12px; background:var(--accent); color:#fff; letter-spacing:0.04em; }
+  #submit:hover { background:var(--deep); }
   #submit:disabled { opacity:.4; }
-  h2 { font-size:16px; margin:40px 0 12px; display:flex; justify-content:space-between; align-items:baseline; }
-  h2 a { font-size:13px; font-weight:400; color:var(--accent); }
-  .app { padding:14px 0; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
-  .app .info { flex:1; font-size:14px; }
-  .app .meta { font-size:13px; color:var(--muted); margin-top:2px; }
-  .app .amt { font-size:16px; font-weight:700; white-space:nowrap; }
-  .app button { font-size:14px; font-weight:700; padding:10px 16px; border:1px solid var(--accent); border-radius:8px; background:#fff; color:var(--accent); white-space:nowrap; }
-  .ok { display:inline-block; font-size:12px; font-weight:700; color:#fff; background:var(--accent); border-radius:3px; padding:2px 8px; }
-  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
-  .note { font-size:12px; color:var(--muted); margin-top:8px; }
+  h2 { font-size:13px; font-weight:600; color:var(--muted); letter-spacing:0.06em; margin:48px 0 10px; display:flex; justify-content:space-between; align-items:baseline; }
+  h2 a { font-size:13px; font-weight:600; color:var(--accent); text-decoration:none; }
+  h2 a:hover { text-decoration:underline; }
+  .app { padding:16px 0; border-bottom:1px solid var(--hair); display:flex; align-items:center; gap:14px; }
+  .app .info { flex:1; font-size:15px; font-weight:600; }
+  .app .meta { font-size:13px; font-weight:400; color:var(--muted); margin-top:3px; }
+  .app .amt { font-size:17px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .app button { font-size:14px; font-weight:700; padding:10px 18px; border:1.5px solid var(--accent); border-radius:10px; background:#fff; color:var(--accent); white-space:nowrap; }
+  .app button:hover { background:var(--tint); }
+  .ok { display:inline-block; font-size:12px; font-weight:700; color:var(--accent); background:var(--tint); border-radius:999px; padding:4px 12px; }
+  .empty { font-size:13px; color:var(--muted); padding:14px 0; line-height:1.7; }
+  .note { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.7; }
   #err { color:var(--warn); font-size:13px; margin-top:8px; display:none; }
   @media (min-width:900px) {
-    main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:48px; align-items:start; }
-    h1 { grid-column:1 / -1; }
+    .top { max-width:1100px; }
+    main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:56px; align-items:start; }
+    h1, .sub { grid-column:1 / -1; }
     .col-form { grid-column:1; }
     .col-list { grid-column:2; }
     .col-list h2 { margin-top:0; }
@@ -50,9 +60,10 @@
 </style>
 </head>
 <body>
-<div class="band"><span>デモ版 — 記録はこの端末内のみ。本番は承認者へ自動通知し、給与計算へそのまま連携</span><a href="../">← デモ一覧</a></div>
+<div class="top"><a href="../">← デモ一覧</a><span>デモ版 — 記録はこの端末のみ</span></div>
 <main>
   <h1>マイカー利用費 申請</h1>
+  <p class="sub">出発地と目的地を入れるだけ。距離と支給額は自動で計算します。</p>
 
   <div class="col-form">
     <div class="row2">
@@ -76,7 +87,7 @@
   </div>
 
   <div class="col-list">
-    <h2>申請一覧<a href="#" id="csv">給与反映用CSVをダウンロード</a></h2>
+    <h2>申請一覧<a href="#" id="csv">給与反映用CSV ↓</a></h2>
     <div id="list"></div>
   </div>
 </main>
@@ -94,9 +105,10 @@
 
   function calcAmount() {
     var km = parseFloat($('km').value), rate = parseFloat($('rate').value);
-    if (isNaN(km) || isNaN(rate)) { $('amount').textContent = '—'; return null; }
+    if (isNaN(km) || isNaN(rate)) { $('amount').textContent = '—'; $('amount').classList.remove('lit'); return null; }
     var total = Math.round(km * rate * ($('round').checked ? 2 : 1));
     $('amount').textContent = yen(total);
+    $('amount').classList.add('lit');
     return total;
   }
   $('km').addEventListener('input', calcAmount);
