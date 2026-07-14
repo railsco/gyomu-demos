@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MEO投稿・口コミ返信 自動化（デモ）</title>
+<style>
+  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --lite:#F1F8FB; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
+  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
+  .band { max-width:720px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .band a { color:var(--muted); white-space:nowrap; }
+  main { max-width:720px; margin:0 auto; }
+  h1 { font-size:22px; font-weight:700; margin-bottom:20px; }
+  .tabs { display:flex; gap:8px; margin-bottom:24px; }
+  .tabs button { flex:1; font-size:16px; font-weight:700; padding:14px 0; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  .tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
+  input, textarea, select { width:100%; font-size:16px; padding:13px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font-family:inherit; }
+  textarea { min-height:110px; resize:vertical; }
+  input:focus, textarea:focus { outline:2px solid var(--accent); border-color:transparent; }
+  .samples { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .samples button { font-size:13px; padding:8px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; color:var(--accent); }
+  .seg { display:flex; gap:8px; }
+  .seg button { flex:1; font-size:16px; padding:13px 0; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  .seg button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .go { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:24px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:16px; margin-top:14px; background:var(--lite); }
+  .card .head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .card .tag { font-size:12px; font-weight:700; color:var(--accent); }
+  .card .copy { font-size:13px; color:var(--accent); background:none; border:none; font-weight:700; }
+  .card p { font-size:14px; line-height:1.8; white-space:pre-wrap; }
+  .tags { margin-top:10px; font-size:13px; color:var(--accent); }
+  .note { font-size:12px; color:var(--muted); margin-top:20px; line-height:1.7; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<div class="band"><span>デモ版 — 定型文ベースの簡易生成。本番はAIが内容と店舗情報を読んで1件ずつ個別に作成</span><a href="../">← デモ一覧</a></div>
+<main>
+  <h1>MEO投稿・口コミ返信 自動化</h1>
+  <div class="tabs">
+    <button id="tabR" class="on">口コミ返信</button>
+    <button id="tabP">MEO投稿</button>
+  </div>
+
+  <!-- 口コミ返信 -->
+  <section id="secR">
+    <label>お店の名前</label>
+    <input id="shop" type="text" value="サロン こもれび（サンプル）">
+    <label>いただいた口コミ（貼り付け）</label>
+    <textarea id="review" placeholder="Googleマップの口コミ本文をここに貼り付け"></textarea>
+    <div class="samples">
+      <button data-s="good">★5の例を入れる</button>
+      <button data-s="mid">★3の例を入れる</button>
+      <button data-s="bad">★1の例を入れる</button>
+    </div>
+    <label>返信のトーン</label>
+    <div class="seg" id="tone">
+      <button class="on" data-v="polite">丁寧</button>
+      <button data-v="friendly">親しみ</button>
+    </div>
+    <button class="go" id="genR">返信案を3つつくる</button>
+    <div id="outR"></div>
+  </section>
+
+  <!-- MEO投稿 -->
+  <section id="secP" class="hide">
+    <label>お店の名前</label>
+    <input id="shopP" type="text" value="サロン こもれび（サンプル）">
+    <label>今週のネタ（新メニュー・お知らせ・季節の話題など）</label>
+    <textarea id="topic" placeholder="例: 夏限定のクールハーブコースを始めました。汗をかいた後もさっぱり。"></textarea>
+    <label>業種</label>
+    <select id="biz">
+      <option value="salon">リラクゼーション・サロン</option>
+      <option value="food">飲食</option>
+      <option value="retail">小売</option>
+    </select>
+    <button class="go" id="genP">投稿文をつくる</button>
+    <div id="outP"></div>
+  </section>
+
+  <p class="note">
+    本番導入時: 新着口コミを自動検知 → AIが全文と店舗情報を読んで返信案を作成 → 承認ワンタップで自動返信。
+    MEO投稿は週次でネタをチャットに送るだけで、本文・写真選定・投稿（Googleビジネスプロフィールへの自動投稿）まで自動化できます。
+  </p>
+</main>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+  // タブ
+  $('tabR').onclick = function () { $('tabR').classList.add('on'); $('tabP').classList.remove('on'); $('secR').classList.remove('hide'); $('secP').classList.add('hide'); };
+  $('tabP').onclick = function () { $('tabP').classList.add('on'); $('tabR').classList.remove('on'); $('secP').classList.remove('hide'); $('secR').classList.add('hide'); };
+
+  // ---- 口コミ返信 ----
+  var SAMPLES = {
+    good: '初めて利用しました。スタッフの方がとても親切で、体がぽかぽかになりました。帰りにハーブティーまでいただいて大満足です。また伺います！',
+    mid: '施術は良かったですが、予約時間から少し待たされたのが残念でした。全体的には普通だと思います。',
+    bad: '受付の対応が事務的で残念でした。説明も少なく、初めてだったので不安なまま終わってしまいました。',
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('.samples button'), function (b) {
+    b.onclick = function () { $('review').value = SAMPLES[b.getAttribute('data-s')]; };
+  });
+  var toneVal = 'polite';
+  Array.prototype.forEach.call(document.querySelectorAll('#tone button'), function (b) {
+    b.onclick = function () {
+      toneVal = b.getAttribute('data-v');
+      Array.prototype.forEach.call(document.querySelectorAll('#tone button'), function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+    };
+  });
+
+  function sentiment(t) {
+    var bad = ['残念', '不満', '最悪', '待たされ', '不安', '事務的', '二度と', 'ひどい', '冷たい'];
+    var good = ['満足', 'ありがとう', '良かった', '親切', 'また', '最高', '丁寧', 'ぽかぽか', '嬉し'];
+    var b = bad.some(function (w) { return t.indexOf(w) >= 0; });
+    var g = good.some(function (w) { return t.indexOf(w) >= 0; });
+    if (b && !g) return 'bad';
+    if (b && g) return 'mid';
+    return g ? 'good' : 'mid';
+  }
+
+  var R = {
+    polite: {
+      open: { good: ['このたびはご来店と温かい口コミをありがとうございます。', 'ご来店いただき、また嬉しいお言葉を頂戴し誠にありがとうございます。'],
+              mid: ['このたびはご来店と率直なご感想をありがとうございます。', 'ご来店いただきありがとうございます。貴重なご意見に感謝いたします。'],
+              bad: ['このたびはご不快な思いをおかけし、誠に申し訳ございませんでした。', 'せっかくご来店いただいたにもかかわらず、残念な思いをさせてしまい申し訳ございません。'] },
+      body: { good: ['お客様に喜んでいただけたこと、スタッフ一同大変励みになります。', 'ゆっくりお過ごしいただけたようで何よりです。'],
+              mid: ['いただいたご指摘は真摯に受け止め、ご案内の流れを見直してまいります。', 'お待たせしてしまった点、運営を改善してまいります。'],
+              bad: ['いただいたご指摘を全スタッフで共有し、ご案内と説明の仕方をすぐに見直します。', '初めてのお客様に安心してお過ごしいただけるよう、受付の対応を改めてまいります。'] },
+      close: ['またのご来店を心よりお待ちしております。', 'ぜひまたお立ち寄りくださいませ。次回はさらにご満足いただけるよう努めます。'],
+    },
+    friendly: {
+      open: { good: ['ご来店ありがとうございます！嬉しい口コミに、スタッフみんなで喜んでいます。', '素敵な口コミをありがとうございます！'],
+              mid: ['ご来店と率直なご感想、ありがとうございます！', 'ご意見ありがとうございます！'],
+              bad: ['このたびは残念な思いをさせてしまい、本当にごめんなさい。', 'せっかくお越しいただいたのに申し訳ありません。'] },
+      body: { good: ['ぽかぽか、キープできていますか？季節に合わせたコースもご用意しています。', 'ハーブティーも気に入っていただけて嬉しいです。'],
+              mid: ['お待たせしない予約の組み方に、さっそく見直しをかけています。', 'いただいた声はすぐチームで共有しました。'],
+              bad: ['ご指摘はその日のうちにみんなで共有し、初めての方へのご説明を作り直しています。', '次はちゃんと安心してもらえるよう、準備して待っています。'] },
+      close: ['またお会いできる日を楽しみにしています！', 'ぜひまた温まりに来てくださいね。'],
+    },
+  };
+
+  $('genR').onclick = function () {
+    var t = $('review').value.trim();
+    if (!t) { alert('口コミを貼り付けるか、サンプルを入れてください'); return; }
+    var s = sentiment(t);
+    var set = R[toneVal];
+    var shop = $('shop').value.trim() || '当店';
+    var out = '';
+    for (var i = 0; i < 3; i++) {
+      var txt = pick(set.open[s]) + '\n' + pick(set.body[s]) + '\n' + pick(set.close) + '\n\n' + shop;
+      out += '<div class="card"><div class="head"><span class="tag">返信案 ' + (i + 1) + '</span><button class="copy">コピー</button></div><p>' + esc(txt) + '</p></div>';
+    }
+    $('outR').innerHTML = out;
+    hookCopy('#outR');
+  };
+
+  // ---- MEO投稿 ----
+  var P = {
+    salon: { intro: ['こんにちは、{shop}です。', '{shop}よりお知らせです。'], cta: ['ご予約はプロフィールのリンクからどうぞ。', 'ご来店お待ちしております。'], tags: ['#リラクゼーション', '#サロン', '#癒やし', '#ご自愛時間', '#週末の過ごし方'] },
+    food:  { intro: ['こんにちは、{shop}です。', '{shop}から今週のお知らせです。'], cta: ['ご来店・ご予約お待ちしております。', 'テイクアウトもご利用いただけます。'], tags: ['#ランチ', '#ディナー', '#地元グルメ', '#今日のごはん', '#お持ち帰り'] },
+    retail:{ intro: ['{shop}です。いつもありがとうございます。', 'こんにちは、{shop}です。'], cta: ['店頭でお待ちしております。', '在庫はお電話でもご確認いただけます。'], tags: ['#新商品', '#お買い物', '#地元のお店', '#おすすめ', '#入荷情報'] },
+  };
+  $('genP').onclick = function () {
+    var topic = $('topic').value.trim();
+    if (!topic) { alert('今週のネタを入れてください'); return; }
+    var set = P[$('biz').value];
+    var shop = $('shopP').value.trim() || '当店';
+    var body = pick(set.intro).replace('{shop}', shop) + '\n\n' + topic + '\n\n' + pick(set.cta);
+    var tags = set.tags.slice(0, 5).join(' ');
+    $('outP').innerHTML = '<div class="card"><div class="head"><span class="tag">投稿文</span><button class="copy">コピー</button></div><p>' + esc(body) + '</p><div class="tags">' + esc(tags) + '</div></div>';
+    hookCopy('#outP');
+  };
+
+  function hookCopy(sel) {
+    Array.prototype.forEach.call(document.querySelectorAll(sel + ' .copy'), function (b) {
+      b.onclick = function () {
+        var text = b.closest('.card').querySelector('p').textContent;
+        navigator.clipboard.writeText(text).then(function () { b.textContent = 'コピーしました'; setTimeout(function () { b.textContent = 'コピー'; }, 1500); });
+      };
+    });
+  }
+</script>
+</body>
+</html>

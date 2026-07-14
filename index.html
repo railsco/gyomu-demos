@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>業務効率化デモ</title>
+<style>
+  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --lite:#F1F8FB; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
+  body { background:#fff; color:var(--ink); padding:56px 20px 80px; }
+  main { max-width:640px; margin:0 auto; }
+  h1 { font-size:24px; font-weight:700; }
+  .sub { font-size:14px; color:var(--muted); margin:8px 0 36px; }
+  a.card { display:block; border:1px solid var(--line); border-radius:8px; padding:20px; margin-bottom:14px; text-decoration:none; color:var(--ink); }
+  a.card:hover { border-color:var(--accent); }
+  .t { font-size:17px; font-weight:700; color:var(--accent); }
+  .d { font-size:14px; color:var(--muted); margin-top:6px; line-height:1.7; }
+  footer { max-width:640px; margin:48px auto 0; font-size:12px; color:var(--muted); line-height:1.7; }
+</style>
+</head>
+<body>
+<main>
+  <h1>業務効率化デモ</h1>
+  <p class="sub">ブラウザで開くだけで動きます。記録は各端末内のみ（サーバー保存なし）。</p>
+
+  <a class="card" href="https://railsco.github.io/dakoku-demo/">
+    <div class="t">トラック入退場 打刻</div>
+    <div class="d">手書き受付表の代わりにワンタップ記録。本日台数・平均滞在・2時間超をその場で表示。</div>
+  </a>
+  <a class="card" href="./mycar/">
+    <div class="t">マイカー利用費 申請</div>
+    <div class="d">出発地と目的地を入れると道路ルートで距離を自動計算。申請→承認→給与反映用CSVまで。</div>
+  </a>
+  <a class="card" href="./meo/">
+    <div class="t">MEO投稿・口コミ返信</div>
+    <div class="d">口コミを貼ると返信案を3つ作成。週のネタからGoogleマップ投稿文も。</div>
+  </a>
+  <a class="card" href="./shiwake/">
+    <div class="t">仕訳の下ごしらえ</div>
+    <div class="d">銀行明細を貼ると勘定科目を自動で当てる。人は自信の低い行だけ確認して会計ソフトへ。</div>
+  </a>
+
+  <footer>各デモは仕組みを体感いただくための簡易版です。本番導入では、AIによる個別判定・自動通知・スプレッドシートや会計ソフトとの連携まで作り込みます。<br>NEXT INNOVAITION株式会社</footer>
+</main>
+</body>
+</html>

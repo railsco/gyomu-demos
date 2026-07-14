@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>マイカー利用費 申請（デモ）</title>
+<style>
+  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --warn:#C0392B; --lite:#F1F8FB; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
+  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
+  .band { max-width:1100px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .band a { color:var(--muted); white-space:nowrap; }
+  main { max-width:640px; margin:0 auto; }
+  h1 { font-size:22px; font-weight:700; margin-bottom:20px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
+  input, select { width:100%; font-size:16px; padding:13px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+  input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  .row2 { display:flex; gap:12px; }
+  .row2 > div { flex:1; }
+  .check { display:flex; align-items:center; gap:8px; margin-top:16px; font-size:16px; }
+  .check input { width:22px; height:22px; }
+  #calc { width:100%; font-size:16px; font-weight:700; padding:14px 0; margin-top:20px; border:1px solid var(--accent); border-radius:8px; background:#fff; color:var(--accent); }
+  #calc:disabled { opacity:.4; }
+  .result { display:flex; gap:10px; margin-top:16px; }
+  .rbox { flex:1; border:1px solid var(--line); border-radius:8px; padding:12px; text-align:center; background:var(--lite); }
+  .rbox .n { font-size:22px; font-weight:700; color:var(--accent); }
+  .rbox .n input { font-size:22px; font-weight:700; color:var(--accent); text-align:center; border:none; background:none; width:100%; padding:0; }
+  .rbox .l { font-size:13px; color:var(--muted); margin-top:2px; }
+  #amount { font-size:22px; font-weight:700; color:var(--ink); }
+  #submit { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:20px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
+  #submit:disabled { opacity:.4; }
+  h2 { font-size:16px; margin:40px 0 12px; display:flex; justify-content:space-between; align-items:baseline; }
+  h2 a { font-size:13px; font-weight:400; color:var(--accent); }
+  .app { padding:14px 0; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  .app .info { flex:1; font-size:14px; }
+  .app .meta { font-size:13px; color:var(--muted); margin-top:2px; }
+  .app .amt { font-size:16px; font-weight:700; white-space:nowrap; }
+  .app button { font-size:14px; font-weight:700; padding:10px 16px; border:1px solid var(--accent); border-radius:8px; background:#fff; color:var(--accent); white-space:nowrap; }
+  .ok { display:inline-block; font-size:12px; font-weight:700; color:#fff; background:var(--accent); border-radius:3px; padding:2px 8px; }
+  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
+  .note { font-size:12px; color:var(--muted); margin-top:8px; }
+  #err { color:var(--warn); font-size:13px; margin-top:8px; display:none; }
+  @media (min-width:900px) {
+    main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:48px; align-items:start; }
+    h1 { grid-column:1 / -1; }
+    .col-form { grid-column:1; }
+    .col-list { grid-column:2; }
+    .col-list h2 { margin-top:0; }
+  }
+</style>
+</head>
+<body>
+<div class="band"><span>デモ版 — 記録はこの端末内のみ。本番は承認者へ自動通知し、給与計算へそのまま連携</span><a href="../">← デモ一覧</a></div>
+<main>
+  <h1>マイカー利用費 申請</h1>
+
+  <div class="col-form">
+    <div class="row2">
+      <div><label>利用日</label><input id="date" type="date"></div>
+      <div><label>氏名</label><input id="name" type="text" placeholder="例: 山田 花子"></div>
+    </div>
+    <label>出発地</label>
+    <input id="from" type="text" placeholder="例: 会社・事業所の住所" autocomplete="off">
+    <label>目的地</label>
+    <input id="to" type="text" placeholder="例: 訪問先の名称や住所" autocomplete="off">
+    <div class="check"><input id="round" type="checkbox" checked><label for="round" style="margin:0;font-size:16px;color:var(--ink)">往復</label></div>
+    <button id="calc">距離を自動計算（地図ルート）</button>
+    <div id="err"></div>
+    <div class="result">
+      <div class="rbox"><div class="n"><input id="km" type="number" step="0.1" min="0" placeholder="—"></div><div class="l">距離（km・手修正可）</div></div>
+      <div class="rbox"><div class="n"><input id="rate" type="number" step="1" min="0" value="15"></div><div class="l">単価（円/km）</div></div>
+      <div class="rbox"><div class="n" id="amount">—</div><div class="l">支給額（円）</div></div>
+    </div>
+    <button id="submit">この内容で申請</button>
+    <p class="note">距離計算はOpenStreetMapの道路ルート（デモ用・無料）。本番はGoogleマップの経路で厳密に算出します。</p>
+  </div>
+
+  <div class="col-list">
+    <h2>申請一覧<a href="#" id="csv">給与反映用CSVをダウンロード</a></h2>
+    <div id="list"></div>
+  </div>
+</main>
+
+<script>
+  var KEY = 'mycar-demo';
+  var $ = function (id) { return document.getElementById(id); };
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+  function save(l) { localStorage.setItem(KEY, JSON.stringify(l)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  function yen(n) { return Number(n).toLocaleString('ja-JP'); }
+
+  var d = new Date();
+  $('date').value = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+
+  function calcAmount() {
+    var km = parseFloat($('km').value), rate = parseFloat($('rate').value);
+    if (isNaN(km) || isNaN(rate)) { $('amount').textContent = '—'; return null; }
+    var total = Math.round(km * rate * ($('round').checked ? 2 : 1));
+    $('amount').textContent = yen(total);
+    return total;
+  }
+  $('km').addEventListener('input', calcAmount);
+  $('rate').addEventListener('input', calcAmount);
+  $('round').addEventListener('change', calcAmount);
+
+  function showErr(msg) { var e = $('err'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
+
+  function geocode(q) {
+    return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (!j.length) throw new Error('場所が見つかりません: ' + q); return j[0]; });
+  }
+
+  $('calc').onclick = function () {
+    var from = $('from').value.trim(), to = $('to').value.trim();
+    if (!from || !to) { showErr('出発地と目的地を入力してください'); return; }
+    showErr('');
+    $('calc').disabled = true;
+    $('calc').textContent = '計算中…';
+    Promise.all([geocode(from), geocode(to)]).then(function (pts) {
+      var url = 'https://router.project-osrm.org/route/v1/driving/' +
+        pts[0].lon + ',' + pts[0].lat + ';' + pts[1].lon + ',' + pts[1].lat + '?overview=false';
+      return fetch(url).then(function (r) { return r.json(); });
+    }).then(function (j) {
+      if (!j.routes || !j.routes.length) throw new Error('ルートが見つかりません');
+      $('km').value = (j.routes[0].distance / 1000).toFixed(1);
+      calcAmount();
+    }).catch(function (e) {
+      showErr((e.message || '自動計算に失敗しました') + '。距離(km)を手入力してください');
+    }).finally(function () {
+      $('calc').disabled = false;
+      $('calc').textContent = '距離を自動計算（地図ルート）';
+    });
+  };
+
+  function render() {
+    var list = load();
+    $('list').innerHTML = list.length
+      ? list.map(function (a, i) {
+          return '<div class="app"><div class="info">' + esc(a.date) + '　' + esc(a.name || '（無記名）') +
+            '<div class="meta">' + esc(a.from) + ' → ' + esc(a.to) + (a.round ? '（往復）' : '') + ' ｜ ' + esc(a.km) + 'km × ' + esc(a.rate) + '円</div></div>' +
+            '<div class="amt">' + yen(a.amount) + '円</div>' +
+            (a.approved ? '<span class="ok">承認済み</span>' : '<button data-i="' + i + '">承認</button>') + '</div>';
+        }).join('')
+      : '<div class="empty">まだ申請はありません。フォームから申請すると、承認者にはこの一覧が届きます</div>';
+    Array.prototype.forEach.call(document.querySelectorAll('.app button'), function (b) {
+      b.onclick = function () {
+        var list = load();
+        list[Number(b.getAttribute('data-i'))].approved = true;
+        save(list); render();
+      };
+    });
+  }
+
+  $('submit').onclick = function () {
+    var amount = calcAmount();
+    if (amount === null) { showErr('距離と単価を入れてください（自動計算か手入力）'); return; }
+    if (!$('from').value.trim() || !$('to').value.trim()) { showErr('出発地と目的地を入力してください'); return; }
+    showErr('');
+    var list = load();
+    list.unshift({
+      date: $('date').value, name: $('name').value.trim(),
+      from: $('from').value.trim(), to: $('to').value.trim(),
+      round: $('round').checked, km: parseFloat($('km').value), rate: parseFloat($('rate').value),
+      amount: amount, approved: false,
+    });
+    save(list);
+    $('to').value = ''; $('km').value = ''; $('amount').textContent = '—';
+    render();
+  };
+
+  $('csv').onclick = function (e) {
+    e.preventDefault();
+    var rows = [['利用日', '氏名', '出発地', '目的地', '往復', '距離km', '単価', '支給額', '状態']];
+    load().forEach(function (a) {
+      rows.push([a.date, a.name, a.from, a.to, a.round ? '往復' : '片道', a.km, a.rate, a.amount, a.approved ? '承認済み' : '承認待ち']);
+    });
+    var csv = '﻿' + rows.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'マイカー利用費.csv';
+    a.click();
+  };
+
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>仕訳の下ごしらえ 自動化（デモ）</title>
+<style>
+  :root { --ink:#163445; --accent:#11688A; --line:#D5E6EE; --muted:#5E7C8C; --warn:#C0392B; --lite:#F1F8FB; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
+  body { background:#fff; color:var(--ink); padding:24px 16px 90px; }
+  .band { max-width:860px; margin:0 auto 20px; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:12px; }
+  .band a { color:var(--muted); white-space:nowrap; }
+  main { max-width:860px; margin:0 auto; }
+  h1 { font-size:22px; font-weight:700; margin-bottom:8px; }
+  .sub { font-size:14px; color:var(--muted); margin-bottom:20px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:16px 0 6px; }
+  textarea { width:100%; font-size:14px; padding:13px; border:1px solid var(--line); border-radius:8px; min-height:130px; resize:vertical; font-family:ui-monospace,monospace; }
+  textarea:focus { outline:2px solid var(--accent); border-color:transparent; }
+  .samples { display:flex; gap:8px; margin-top:8px; }
+  .samples button { font-size:13px; padding:8px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; color:var(--accent); }
+  .go { width:100%; font-size:22px; font-weight:700; padding:18px 0; margin-top:20px; border:none; border-radius:8px; background:var(--accent); color:#fff; }
+  h2 { font-size:16px; margin:36px 0 12px; display:flex; justify-content:space-between; align-items:baseline; }
+  h2 a { font-size:13px; font-weight:400; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  th { font-size:13px; font-weight:400; color:var(--muted); text-align:left; padding:6px 8px 6px 0; border-bottom:1px solid var(--ink); }
+  td { font-size:13px; padding:8px 8px 8px 0; border-bottom:1px solid var(--line); vertical-align:middle; }
+  td select { font-size:13px; padding:6px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink); }
+  .conf-h { color:var(--accent); font-weight:700; }
+  .conf-l { color:var(--warn); font-weight:700; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .empty { font-size:13px; color:var(--muted); padding:12px 0; }
+  .note { font-size:12px; color:var(--muted); margin-top:20px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="band"><span>デモ版 — この画面だけで完結。本番は明細の自動取込とAI判定で、担当者は「確認」だけ</span><a href="../">← デモ一覧</a></div>
+<main>
+  <h1>仕訳の下ごしらえ 自動化</h1>
+  <p class="sub">銀行明細を貼り付けると、勘定科目を自動で当てます。人は自信が低いものだけ直して、会計ソフト用CSVを出すだけ。</p>
+
+  <label>銀行明細（日付, 摘要, 金額 — 1行1件。マイナス=出金）</label>
+  <textarea id="src" placeholder="2026-07-01, 電気料金 チュウブデンリョク, -84210"></textarea>
+  <div class="samples"><button id="sample">サンプル明細を入れる</button></div>
+  <button class="go" id="run">勘定科目を自動で当てる</button>
+
+  <h2>仕訳プレビュー<a href="#" id="csv">会計ソフト取込用CSVをダウンロード</a></h2>
+  <div id="out"><div class="empty">明細を入れて「自動で当てる」を押してください</div></div>
+
+  <p class="note">
+    自動判定はキーワードルール（デモ用）。本番はAIが摘要・金額・過去の仕訳履歴を読んで判定し、確信度の低いものだけ人に回します。<br>
+    本番の登録ルートは2つ: ①マネーフォワード クラウド会計の公式API/AI連携（2026年3月に全プランへ解放済み）で直接仕訳登録
+    ②従来どおりのCSVインポート。どちらでも運用できます。
+  </p>
+</main>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  function yen(n) { return Number(n).toLocaleString('ja-JP'); }
+
+  var SAMPLE = [
+    '2026-07-01, 電気料金 チュウブデンリョク, -84210',
+    '2026-07-02, 振込 ナガノウンユ（カ, -132000',
+    '2026-07-03, ETC利用 0625ブン, -8460',
+    '2026-07-04, 振込 ○○ショウジ（カ, 1650000',
+    '2026-07-07, ガソリン ENEOSマツモト, -12800',
+    '2026-07-08, 携帯電話 NTTドコモ, -34600',
+    '2026-07-10, 事務用品 アスクル, -9240',
+    '2026-07-11, 保険料 ソンポジャパン, -45000',
+    '2026-07-14, 不明な入金 テスワリ, 58000',
+  ].join('\n');
+  $('sample').onclick = function () { $('src').value = SAMPLE; };
+
+  var ACCOUNTS = ['売掛金回収', '売上高', '水道光熱費', '旅費交通費', '車両費', '通信費', '事務用品費', '支払運賃', '保険料', '雑収入', '（要確認）'];
+  var RULES = [
+    { kw: ['電気', 'デンリョク', 'ガス', '水道'], acc: '水道光熱費' },
+    { kw: ['ETC', '高速'], acc: '旅費交通費' },
+    { kw: ['ガソリン', 'ENEOS', '出光', 'コスモ'], acc: '車両費' },
+    { kw: ['ドコモ', 'ソフトバンク', 'AU', 'NTT', '通信'], acc: '通信費' },
+    { kw: ['アスクル', '事務', 'コクヨ'], acc: '事務用品費' },
+    { kw: ['ウンユ', '運送', 'ウンソウ', '運輸'], acc: '支払運賃' },
+    { kw: ['保険', 'ソンポ', '生命'], acc: '保険料' },
+  ];
+  function judge(desc, amount) {
+    var up = desc.toUpperCase();
+    for (var i = 0; i < RULES.length; i++) {
+      if (RULES[i].kw.some(function (k) { return up.indexOf(k.toUpperCase()) >= 0; })) return { acc: RULES[i].acc, conf: '高' };
+    }
+    if (amount > 0 && /振込/.test(desc)) return { acc: '売掛金回収', conf: '中' };
+    if (amount > 0) return { acc: '雑収入', conf: '低' };
+    return { acc: '（要確認）', conf: '低' };
+  }
+
+  var rows = [];
+  $('run').onclick = function () {
+    var lines = $('src').value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+    if (!lines.length) { alert('明細を貼り付けるか、サンプルを入れてください'); return; }
+    rows = [];
+    lines.forEach(function (l) {
+      var p = l.split(',').map(function (x) { return x.trim(); });
+      if (p.length < 3) return;
+      var amount = parseInt(String(p[2]).replace(/[^\-0-9]/g, ''), 10);
+      if (isNaN(amount)) return;
+      var j = judge(p[1], amount);
+      rows.push({ date: p[0], desc: p[1], amount: amount, acc: j.acc, conf: j.conf });
+    });
+    render();
+  };
+
+  function render() {
+    if (!rows.length) { $('out').innerHTML = '<div class="empty">読み取れる明細がありませんでした（形式: 日付, 摘要, 金額）</div>'; return; }
+    var lowN = rows.filter(function (r) { return r.conf !== '高'; }).length;
+    var html = '<table><tr><th>日付</th><th>摘要</th><th class="num">金額</th><th>勘定科目（修正可）</th><th>自信</th></tr>' +
+      rows.map(function (r, i) {
+        var opts = ACCOUNTS.map(function (a) { return '<option' + (a === r.acc ? ' selected' : '') + '>' + esc(a) + '</option>'; }).join('');
+        return '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.desc) + '</td><td class="num">' + yen(r.amount) + '</td>' +
+          '<td><select data-i="' + i + '">' + opts + '</select></td>' +
+          '<td class="' + (r.conf === '高' ? 'conf-h' : 'conf-l') + '">' + r.conf + '</td></tr>';
+      }).join('') + '</table>';
+    html += '<p class="note">' + rows.length + '件中 ' + (rows.length - lowN) + '件は自動確定。人が見るのは自信「中・低」の ' + lowN + '件だけ。</p>';
+    $('out').innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll('#out select'), function (s) {
+      s.onchange = function () { rows[Number(s.getAttribute('data-i'))].acc = s.value; };
+    });
+  }
+
+  $('csv').onclick = function (e) {
+    e.preventDefault();
+    if (!rows.length) { alert('先に明細を読み込んでください'); return; }
+    var out = [['取引日', '摘要', '金額', '勘定科目']];
+    rows.forEach(function (r) { out.push([r.date, r.desc, r.amount, r.acc]); });
+    var csv = '﻿' + out.map(function (r) { return r.map(function (c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = '仕訳インポート.csv';
+    a.click();
+  };
+</script>
+</body>
+</html>
