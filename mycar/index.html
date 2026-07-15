@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>マイカー利用費 申請（デモ）</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root { --ink:#17323F; --accent:#11688A; --deep:#0E5876; --line:#E1ECF1; --hair:#EAF2F5; --muted:#5E7A87; --warn:#C0392B; --tint:#F0F7FA; }
   * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif; }
@@ -49,18 +51,7 @@
   .empty { font-size:13px; color:var(--muted); padding:14px 0; line-height:1.7; }
   .note { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.7; }
   #err { color:var(--warn); font-size:13px; margin-top:8px; display:none; }
-  .ocr { border:1.5px dashed var(--line); border-radius:12px; padding:16px; }
-  .ocr #pick { width:100%; font-size:15px; font-weight:700; padding:13px 0; border:none; border-radius:10px; background:var(--tint); color:var(--accent); }
-  .ocr #pick:hover { background:#E2F0F5; }
-  .ocr .sample { margin-top:8px; width:100%; font-size:13px; font-weight:600; padding:9px 0; border:none; border-radius:999px; background:none; color:var(--muted); }
-  .ocr .sample:hover { color:var(--accent); }
-  #ocrStatus { font-size:13px; color:var(--accent); margin-top:8px; display:none; line-height:1.6; }
-  #ocrStatus.err { color:var(--warn); }
-  #keyBox { margin-top:10px; }
-  #keyBox summary { font-size:12px; color:var(--muted); cursor:pointer; }
-  .keyrow { display:flex; gap:8px; margin-top:10px; }
-  .keyrow input { flex:1; font-size:13px; padding:10px 12px; }
-  .keyrow button { font-size:13px; font-weight:700; padding:0 16px; border:1.5px solid var(--accent); border-radius:10px; background:#fff; color:var(--accent); }
+  #map { height:300px; border-radius:12px; margin-top:10px; border:1.5px solid var(--line); }
   @media (min-width:900px) {
     .top { max-width:1100px; }
     main { max-width:1100px; display:grid; grid-template-columns:5fr 6fr; column-gap:56px; align-items:start; }
@@ -78,22 +69,7 @@
   <p class="sub">出発地と目的地を入れるだけ。距離と支給額は自動で計算します。</p>
 
   <div class="col-form">
-    <label>申請書から自動入力</label>
-    <div class="ocr">
-      <button id="pick" type="button">申請書の写真 / PDF を読み取る</button>
-      <button id="trySample" type="button" class="sample">サンプル申請書で試す</button>
-      <input id="file" type="file" accept="image/*,application/pdf" hidden>
-      <div id="ocrStatus"></div>
-      <details id="keyBox">
-        <summary>AI読み取りの設定</summary>
-        <div class="keyrow">
-          <input id="apikey" type="password" placeholder="Anthropic APIキー（sk-ant-…）" autocomplete="off">
-          <button id="saveKey" type="button">保存</button>
-        </div>
-        <p class="note">キーはこの端末のブラウザ内にのみ保存されます（デモ用）。本番はサーバー側にキーを置き、入力なしで使えるようにします。</p>
-      </details>
-    </div>
-    <div class="row2" style="margin-top:8px">
+    <div class="row2">
       <div><label>利用日</label><input id="date" type="date"></div>
       <div><label>氏名</label><input id="name" type="text" placeholder="例: 山田 花子"></div>
     </div>
@@ -101,8 +77,14 @@
     <input id="from" type="text" placeholder="例: 会社・事業所の住所" autocomplete="off">
     <label>目的地</label>
     <input id="to" type="text" placeholder="例: 訪問先の名称や住所" autocomplete="off">
+    <label>または地図をタップして選ぶ</label>
+    <div class="seg" id="mapmode">
+      <button type="button" data-m="from" class="on">① 出発地を指定</button>
+      <button type="button" data-m="to">② 目的地を指定</button>
+    </div>
+    <div id="map"></div>
     <div class="check"><input id="round" type="checkbox" checked><label for="round" style="margin:0;font-size:16px;color:var(--ink)">往復</label></div>
-    <button id="calc">距離を自動計算（地図ルート）</button>
+    <button id="calc">入力した住所から距離を計算</button>
     <div id="err"></div>
     <div class="result">
       <div class="rbox"><div class="n"><input id="km" type="number" step="0.1" min="0" placeholder="—"></div><div class="l">距離（km・手修正可）</div></div>
@@ -110,7 +92,7 @@
       <div class="rbox"><div class="n" id="amount">—</div><div class="l">支給額（円）</div></div>
     </div>
     <button id="submit">この内容で申請</button>
-    <p class="note">距離計算はOpenStreetMapの道路ルート（デモ用・無料）。本番はGoogleマップの経路で厳密に算出します。</p>
+    <p class="note">地図・距離計算はOpenStreetMap（デモ用・無料・APIキー不要）。本番はGoogleマップ（検索候補つき・厳密な経路）に差し替えます。</p>
   </div>
 
   <div class="col-list">
@@ -150,25 +132,70 @@
       .then(function (j) { if (!j.length) throw new Error('場所が見つかりません: ' + q); return j[0]; });
   }
 
+  // ---- 地図から選ぶ（タップでピン→ルート距離を自動計算） ----
+  var map = L.map('map').setView([36.23, 137.97], 10);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+  var pins = { from: null, to: null };
+  var routeLine = null;
+  var mapMode = 'from';
+  function setMode(m) {
+    mapMode = m;
+    Array.prototype.forEach.call(document.querySelectorAll('#mapmode button'), function (b) {
+      b.classList.toggle('on', b.getAttribute('data-m') === m);
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#mapmode button'), function (b) {
+    b.onclick = function () { setMode(b.getAttribute('data-m')); };
+  });
+  function setPin(which, latlng) {
+    if (pins[which]) map.removeLayer(pins[which]);
+    pins[which] = L.marker(latlng).addTo(map).bindPopup(which === 'from' ? '出発地' : '目的地');
+  }
+  function routeFromPins() {
+    if (!pins.from || !pins.to) return;
+    var a = pins.from.getLatLng(), b = pins.to.getLatLng();
+    fetch('https://router.project-osrm.org/route/v1/driving/' + a.lng + ',' + a.lat + ';' + b.lng + ',' + b.lat + '?overview=full&geometries=geojson')
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.routes || !j.routes.length) throw new Error('ルートが見つかりません');
+        $('km').value = (j.routes[0].distance / 1000).toFixed(1);
+        calcAmount();
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.geoJSON(j.routes[0].geometry, { style: { color: '#11688A', weight: 4, opacity: 0.75 } }).addTo(map);
+        map.fitBounds(routeLine.getBounds(), { padding: [24, 24] });
+      })
+      .catch(function (e) { showErr((e.message || 'ルート計算に失敗しました') + '。距離(km)を手入力してください'); });
+  }
+  map.on('click', function (e) {
+    var which = mapMode;
+    showErr('');
+    setPin(which, e.latlng);
+    fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&lat=' + e.latlng.lat + '&lon=' + e.latlng.lng)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var parts = String(j.display_name || '').split(',').map(function (s) { return s.trim(); });
+        $(which).value = parts.slice(0, 2).join('') || (e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4));
+      })
+      .catch(function () { $(which).value = e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4); });
+    if (which === 'from') setMode('to');
+    routeFromPins();
+  });
+
   $('calc').onclick = function () {
     var from = $('from').value.trim(), to = $('to').value.trim();
-    if (!from || !to) { showErr('出発地と目的地を入力してください'); return; }
+    if (!from || !to) { showErr('出発地と目的地を入力してください（または地図をタップ）'); return; }
     showErr('');
     $('calc').disabled = true;
     $('calc').textContent = '計算中…';
     Promise.all([geocode(from), geocode(to)]).then(function (pts) {
-      var url = 'https://router.project-osrm.org/route/v1/driving/' +
-        pts[0].lon + ',' + pts[0].lat + ';' + pts[1].lon + ',' + pts[1].lat + '?overview=false';
-      return fetch(url).then(function (r) { return r.json(); });
-    }).then(function (j) {
-      if (!j.routes || !j.routes.length) throw new Error('ルートが見つかりません');
-      $('km').value = (j.routes[0].distance / 1000).toFixed(1);
-      calcAmount();
+      setPin('from', L.latLng(parseFloat(pts[0].lat), parseFloat(pts[0].lon)));
+      setPin('to', L.latLng(parseFloat(pts[1].lat), parseFloat(pts[1].lon)));
+      routeFromPins();
     }).catch(function (e) {
       showErr((e.message || '自動計算に失敗しました') + '。距離(km)を手入力してください');
     }).finally(function () {
       $('calc').disabled = false;
-      $('calc').textContent = '距離を自動計算（地図ルート）';
+      $('calc').textContent = '入力した住所から距離を計算';
     });
   };
 
@@ -220,97 +247,6 @@
     a.download = 'マイカー利用費.csv';
     a.click();
   };
-
-  // ---- 申請書の自動読み取り（写真/PDF → AI） ----
-  var AKEY = 'mycar-anthropic-key';
-  $('apikey').value = localStorage.getItem(AKEY) || '';
-  function ocrStatus(msg, isErr) {
-    var s = $('ocrStatus');
-    s.textContent = msg;
-    s.className = isErr ? 'err' : '';
-    s.style.display = msg ? 'block' : 'none';
-  }
-  $('saveKey').onclick = function () {
-    localStorage.setItem(AKEY, $('apikey').value.trim());
-    ocrStatus('キーを保存しました。申請書を選んでください', false);
-  };
-  $('pick').onclick = function () { $('file').click(); };
-  $('file').addEventListener('change', function () {
-    var f = this.files[0];
-    this.value = '';
-    if (!f) return;
-    var key = (localStorage.getItem(AKEY) || '').trim();
-    if (!key) {
-      $('keyBox').open = true;
-      ocrStatus('AI読み取りにはAPIキーの設定が必要です。キーなしでも「サンプル申請書で試す」で動きを確認できます', true);
-      return;
-    }
-    var reader = new FileReader();
-    reader.onload = function () {
-      var b64 = String(reader.result).split(',')[1];
-      var isPdf = f.type === 'application/pdf';
-      extract(key, b64, isPdf ? 'application/pdf' : (f.type || 'image/jpeg'), isPdf);
-    };
-    reader.readAsDataURL(f);
-  });
-  function extract(key, b64, mediaType, isPdf) {
-    ocrStatus('AIが申請書を読み取り中…', false);
-    var block = isPdf
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
-      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } };
-    fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 400,
-        messages: [{ role: 'user', content: [block, { type: 'text', text: 'これはマイカー利用費の申請書です。記載内容を読み取り、次のJSONだけを返してください（説明文なし）: {"date":"YYYY-MM-DD","name":"氏名","from":"出発地","to":"目的地","round":true/false,"km":数値またはnull} 読み取れない項目はnull。往復に印が付いていればround=true。日付は利用日を優先。' }] }],
-      }),
-    }).then(function (r) {
-      if (r.status === 401) throw new Error('APIキーが正しくありません');
-      if (!r.ok) throw new Error('読み取りに失敗しました（' + r.status + '）');
-      return r.json();
-    }).then(function (j) {
-      var txt = ((j.content && j.content[0] && j.content[0].text) || '').replace(/```json|```/g, '').trim();
-      applyExtract(JSON.parse(txt));
-    }).catch(function (e) {
-      ocrStatus((e && e.message ? e.message : '読み取りに失敗しました') + '。手入力もできます', true);
-    });
-  }
-  function applyExtract(x) {
-    if (x.date && /^\d{4}-\d{2}-\d{2}$/.test(x.date)) $('date').value = x.date;
-    if (x.name) $('name').value = x.name;
-    if (x.from) $('from').value = x.from;
-    if (x.to) $('to').value = x.to;
-    if (typeof x.round === 'boolean') $('round').checked = x.round;
-    if (x.km) $('km').value = x.km;
-    calcAmount();
-    if (x.from && x.to && !x.km) {
-      ocrStatus('読み取りました。距離を自動計算しています…', false);
-      $('calc').click();
-    } else {
-      ocrStatus('読み取りました。内容をご確認ください', false);
-    }
-  }
-  $('trySample').onclick = function () {
-    var key = (localStorage.getItem(AKEY) || '').trim();
-    if (!key) { sampleCanned(); return; }
-    ocrStatus('サンプル申請書を読み込み中…', false);
-    fetch('sample-form.png').then(function (r) { return r.blob(); }).then(function (b) {
-      var reader = new FileReader();
-      reader.onload = function () { extract(key, String(reader.result).split(',')[1], 'image/png', false); };
-      reader.readAsDataURL(b);
-    }).catch(sampleCanned);
-  };
-  function sampleCanned() {
-    applyExtract({ date: '2026-07-10', name: '山田 花子', from: '松本駅', to: '長野駅', round: true, km: null });
-    ocrStatus('サンプル申請書（松本駅→長野駅・往復）を読み取った想定で入力しました。AIキーを設定すると実際の画像読み取りになります', false);
-  }
 
   render();
 </script>
